@@ -44,6 +44,13 @@ function validarLogin(){
 					localStorage.setItem("usuario", JSON.stringify(data));
 					window.location.href = 'inicio';
 				}
+			},
+			// F-02: si la API no está disponible se avisa al usuario
+			error: function(xhr){
+				var mensaje = (xhr.responseJSON && xhr.responseJSON.mensaje)
+					? xhr.responseJSON.mensaje
+					: 'No se pudo conectar con el servidor. Intente más tarde.';
+				alert(mensaje);
 			}
 		});
 	}

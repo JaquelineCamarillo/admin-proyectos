@@ -53,8 +53,14 @@ $(document).ready(function(){
            
           });
         },
-        error: function(error) {
-          console.error('Error al cargar proyectos:', error);}
+        error: function(xhr) {
+          console.error('Error al cargar proyectos:', xhr);
+          // F-02: se informa al usuario en lugar de dejar la vista vacía
+          var mensaje = (xhr.responseJSON && xhr.responseJSON.mensaje)
+              ? xhr.responseJSON.mensaje
+              : 'No se pudo conectar con el servidor. Intente más tarde.';
+          $('#cardContainer').html('<div class="col-12"><div class="alert alert-danger" role="alert" id="alertaError">' + mensaje + '</div></div>');
+        }
       });
 });
 

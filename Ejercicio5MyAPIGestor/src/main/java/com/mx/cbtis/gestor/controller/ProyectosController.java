@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,77 +19,46 @@ import com.mx.cbtis.gestor.repository.ProtectosRepository;
 
 @RestController
 public class ProyectosController {
-	
-	@Autowired 
+
+	@Autowired
 	ProtectosRepository proyectostable;
-	
-	/*@PostMapping("/buscarProyecto")
-	public Proyectos getProyecto(@RequestBody Proyectos proyecto) {
-		
-		Proyectos buscar = new Proyectos();
-		Optional<Proyectos> proyectos = proyectostable.findById(proyecto.getId_proyecto());
-		if(proyectos.isPresent()) {
-			buscar = proyectos.get();
-		}
-		
-		return buscar;
-	}*/
-	
+
+	// F-02: si el proyecto no existe se responde 404 en lugar de un objeto vacío
 	@GetMapping("/buscarProyecto")
-	public Proyectos getProyecto(@RequestParam int id_proyecto) {
-		
-		Proyectos buscar = new Proyectos();
+	public ResponseEntity<Proyectos> getProyecto(@RequestParam int id_proyecto) {
 		Optional<Proyectos> proyecto = proyectostable.findById(id_proyecto);
-		if(proyecto.isPresent()) {
-			buscar = proyecto.get();
+		if (proyecto.isPresent()) {
+			return ResponseEntity.ok(proyecto.get());
 		}
-		
-		return buscar;
-	}
-	
-	@PostMapping("/addProyecto")
-	public int addProyecto(@RequestBody Proyectos proyecto) {
-		
-		int flag = 0;
-		if(!proyecto.equals(null)) {
-			
-			proyectostable.save(proyecto);
-			flag = 1;
-		}
-		
-		return flag;
-	}
-	
-	@PostMapping("/updateProyecto")
-	public int updateProyecto(@RequestBody Proyectos proyecto) {
-		
-		int flag = 0;
-		if(!proyecto.equals(null)) {
-			proyectostable.save(proyecto);
-			flag = 1;
-		}
-		
-		return flag;
-	}
-	
-	@DeleteMapping("/deleteProyecto")
-	public int deleteProyecto(@RequestBody Proyectos proyecto) {
-		
-		int flag = 0;
-		if(!proyecto.equals(null)) {
-			proyectostable.delete(proyecto);
-			flag = 1;
-		}
-		
-		return flag;
-	}   
-	
-	@PostMapping("/buscarProyectos")
-	public List<Proyectos> getProyectos(){
-		
-		List<Proyectos> listaProyectos = new ArrayList<>();
-		proyectostable.findAll().forEach(listaProyectos :: add);
-		return listaProyectos;
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
 	}
 
+	@PostMapping("/addProyecto")
+	public ResponseEntity<Integer> addProyecto(@RequestBody Proyectos proyecto) {
+		proyectostable.save(proyecto);
+		return ResponseEntity.ok(1);
+	}
+
+	@PostMapping("/updateProyecto")
+	public ResponseEntity<Integer> updateProyecto(@RequestBody Proyectos proyecto) {
+		proyectostable.save(proyecto);
+		return ResponseEntity.ok(1);
+	}
+
+	// F-04: solo se elimina si el registro existe
+	@DeleteMapping("/deleteProyecto")
+	public ResponseEntity<Integer> deleteProyecto(@RequestBody Proyectos proyecto) {
+		if (proyecto.getId_proyecto() == null || !proyectostable.existsById(proyecto.getId_proyecto())) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(0);
+		}
+		proyectostable.deleteById(proyecto.getId_proyecto());
+		return ResponseEntity.ok(1);
+	}
+
+	@PostMapping("/buscarProyectos")
+	public List<Proyectos> getProyectos() {
+		List<Proyectos> listaProyectos = new ArrayList<>();
+		proyectostable.findAll().forEach(listaProyectos::add);
+		return listaProyectos;
+	}
 }

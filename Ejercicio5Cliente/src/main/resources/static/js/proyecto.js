@@ -474,10 +474,23 @@ function llenarBarraLateral(idProyecto){
 		
 		},
 		
-		error: function() {
+		error: function(xhr) {
             console.log("Error");
+            // F-04: si el proyecto no existe (404) o la API no responde, se informa al usuario
+            var mensaje = xhr.status == 404
+                ? 'El proyecto no existe.'
+                : 'No se pudo cargar el proyecto. Intente más tarde.';
+            mostrarAlerta(mensaje);
         }
 	});
+}
+
+// F-04: muestra un aviso visible en la parte superior de la página
+function mostrarAlerta(mensaje){
+	if ($('#alertaProyecto').length == 0) {
+		$('body').prepend('<div class="alert alert-danger m-3" role="alert" id="alertaProyecto"></div>');
+	}
+	$('#alertaProyecto').text(mensaje);
 }
 
 function comentarios(idTarea){

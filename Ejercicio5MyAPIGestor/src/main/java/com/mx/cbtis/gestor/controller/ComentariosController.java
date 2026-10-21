@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,71 +19,51 @@ import com.mx.cbtis.gestor.repository.ComentariosRepository;
 
 @RestController
 public class ComentariosController {
-	
+
 	@Autowired
 	ComentariosRepository comentariostable;
-	
+
 	@PostMapping("/getComentario")
-
-	public List<Comentarios> getComentario(@RequestBody Comentarios idComentario){
-		List<Comentarios> listaComentarios = comentariostable.findByTarea(idComentario.getId_tarea());
-		return listaComentarios;
+	public List<Comentarios> getComentario(@RequestBody Comentarios idComentario) {
+		return comentariostable.findByTarea(idComentario.getId_tarea());
 	}
-	
+
+	// F-02: si el comentario no existe se responde 404 en lugar de un objeto vacío
 	@GetMapping("/buscarComentario")
-	public Comentarios getComentario(@RequestParam int id) {
-		
-		Comentarios buscar = new Comentarios();
+	public ResponseEntity<Comentarios> getComentario(@RequestParam int id) {
 		Optional<Comentarios> comentario = comentariostable.findById(id);
-		if(comentario.isPresent()) {
-			buscar = comentario.get();
+		if (comentario.isPresent()) {
+			return ResponseEntity.ok(comentario.get());
 		}
-		
-		return buscar;
-	}
-	
-	@PostMapping("/addComentario")
-	public int addComentario(@RequestBody Comentarios comentario) {
-		
-		int flag = 0;
-		if(!comentario.equals(null)) {
-			comentariostable.save(comentario);
-			flag = 1;
-		}
-		
-		return flag;
-	}
-	
-	@PostMapping("/updateComentario")
-	public int updateComentario(@RequestBody Comentarios comentario) {
-		
-		int flag = 0;
-		if(!comentario.equals(null)) {
-			comentariostable.save(comentario);
-			flag = 1;
-		}
-		
-		return flag;
-	}
-	
-	@DeleteMapping("/deleteComentario")
-	public int deleteComentario(@RequestBody Comentarios comentario) {
-		
-		int flag = 0;
-		if(!comentario.equals(null)) {
-			comentariostable.delete(comentario);
-			flag = 1;
-		}
-		
-		return flag;
-	}
-	
-	@PostMapping("/buscarComentarios")
-	public List<Comentarios> getComentarios(){
-		
-		List<Comentarios> listaComentarios = new ArrayList<>();
-		comentariostable.findAll().forEach(listaComentarios :: add);
-		return listaComentarios;
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
 	}
 
+	@PostMapping("/addComentario")
+	public ResponseEntity<Integer> addComentario(@RequestBody Comentarios comentario) {
+		comentariostable.save(comentario);
+		return ResponseEntity.ok(1);
+	}
+
+	@PostMapping("/updateComentario")
+	public ResponseEntity<Integer> updateComentario(@RequestBody Comentarios comentario) {
+		comentariostable.save(comentario);
+		return ResponseEntity.ok(1);
+	}
+
+	// F-04: solo se elimina si el registro existe
+	@DeleteMapping("/deleteComentario")
+	public ResponseEntity<Integer> deleteComentario(@RequestBody Comentarios comentario) {
+		if (comentario.getId_comentario() == null || !comentariostable.existsById(comentario.getId_comentario())) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(0);
+		}
+		comentariostable.deleteById(comentario.getId_comentario());
+		return ResponseEntity.ok(1);
+	}
+
+	@PostMapping("/buscarComentarios")
+	public List<Comentarios> getComentarios() {
+		List<Comentarios> listaComentarios = new ArrayList<>();
+		comentariostable.findAll().forEach(listaComentarios::add);
+		return listaComentarios;
+	}
 }
