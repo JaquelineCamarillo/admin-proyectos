@@ -92,9 +92,9 @@ public class TareasController {
 		}
 	}
 
-	// La fecha es opcional; si viene, debe ser una fecha real con formato yyyy-MM-dd
+	// La fecha es opcional; si viene (ya normalizada), debe ser una fecha real con formato yyyy-MM-dd
 	private boolean fechaValida(String fecha) {
-		if (fecha == null || fecha.trim().isEmpty()) {
+		if (fecha == null) {
 			return true;
 		}
 		try {
