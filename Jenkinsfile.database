@@ -41,9 +41,9 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'mariadb-ci-password', variable: 'DB_PASS')]) {
                     sh '''
-                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" -e "SELECT VERSION() AS mariadb_version;"
-                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" -e "DROP DATABASE IF EXISTS ${DB_NAME}; CREATE DATABASE ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
-                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < dump-dbgestor-202406261453.sql
+                        mariadb --skip-ssl -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" -e "SELECT VERSION() AS mariadb_version;"
+                        mariadb --skip-ssl -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" -e "DROP DATABASE IF EXISTS ${DB_NAME}; CREATE DATABASE ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
+                        mariadb --skip-ssl -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < dump-dbgestor-202406261453.sql
                         echo "Dump importado exitosamente en ${DB_HOST}/${DB_NAME}."
                     '''
                 }
@@ -55,10 +55,10 @@ pipeline {
                 withCredentials([string(credentialsId: 'mariadb-ci-password', variable: 'DB_PASS')]) {
                     sh '''
                         echo "=== 1. TABLAS EN DBGESTOR ===" > reporte_estructura_bd.txt
-                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -t -e "SHOW TABLES;" >> reporte_estructura_bd.txt
+                        mariadb --skip-ssl -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -t -e "SHOW TABLES;" >> reporte_estructura_bd.txt
 
                         for tbl in asignaciones comentarios hibernate_sequence proyectos tareas usuario; do
-                            cnt=$(mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" -N -B "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='${tbl}';")
+                            cnt=$(mariadb --skip-ssl -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" -N -B "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='${tbl}';")
                             if [ "$cnt" -ne "1" ]; then
                                 echo "ERROR: Falta la tabla requerida: ${tbl}"
                                 exit 1
@@ -67,7 +67,7 @@ pipeline {
                         done
 
                         echo "\n=== 2. APLICACIÓN Y VALIDACIÓN DE LLAVES FORÁNEAS E ÍNDICES ===" >> reporte_estructura_bd.txt
-                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -e "
+                        mariadb --skip-ssl -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -e "
                             ALTER TABLE tareas ADD CONSTRAINT fk_tareas_proyecto FOREIGN KEY (proyecto_id) REFERENCES proyectos(id) ON DELETE CASCADE;
                             ALTER TABLE comentarios ADD CONSTRAINT fk_comentarios_tarea FOREIGN KEY (tarea_id) REFERENCES tareas(id) ON DELETE CASCADE;
                             ALTER TABLE comentarios ADD CONSTRAINT fk_comentarios_usuario FOREIGN KEY (usuario_id) REFERENCES usuario(id) ON DELETE CASCADE;
@@ -76,14 +76,14 @@ pipeline {
                         "
 
                         echo "\n=== 3. LLAVES PRIMARIAS Y FORÁNEAS REGISTRADAS (INFORMATION_SCHEMA) ===" >> reporte_estructura_bd.txt
-                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -t -e "
+                        mariadb --skip-ssl -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -t -e "
                             SELECT TABLE_NAME, CONSTRAINT_NAME, CONSTRAINT_TYPE
                             FROM information_schema.TABLE_CONSTRAINTS
                             WHERE TABLE_SCHEMA = '${DB_NAME}'
                             ORDER BY TABLE_NAME, CONSTRAINT_TYPE;
                         " >> reporte_estructura_bd.txt
 
-                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -t -e "
+                        mariadb --skip-ssl -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -t -e "
                             SELECT TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
                             FROM information_schema.KEY_COLUMN_USAGE
                             WHERE TABLE_SCHEMA = '${DB_NAME}'
@@ -101,7 +101,7 @@ pipeline {
                 withCredentials([string(credentialsId: 'mariadb-ci-password', variable: 'DB_PASS')]) {
                     sh '''
                         echo "=== PRUEBAS CRUD SOBRE DBGESTOR ===" > reporte_crud_bd.txt
-                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -t -e "
+                        mariadb --skip-ssl -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -t -e "
                             -- CREATE (INSERT)
                             INSERT INTO usuario (id, nombre, email, password, rol)
                             VALUES (9901, 'Usuario CI Prueba', 'ci_test@utng.edu.mx', 'Secret123!', 'Desarrollador');
