@@ -107,6 +107,7 @@ pipeline {
         stage('Empaquetar y Archivar JAR') {
             steps {
                 dir('Ejercicio5Cliente') {
+                    sh 'rm -f target/*.jar target/*.original'
                     sh 'mvn -o -B package -DskipTests'
                 }
                 archiveArtifacts artifacts: 'Ejercicio5Cliente/target/*.jar,Ejercicio5Cliente/target/trivy-frontend.*,Ejercicio5Cliente/target/site/jacoco/**', fingerprint: true
