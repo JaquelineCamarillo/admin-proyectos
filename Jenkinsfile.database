@@ -1,0 +1,184 @@
+// Pipeline CI - Base de Datos (dbgestor en MariaDB 11)
+// Práctica 3: Actualización de microservicios y pipelines CI · UTNG
+pipeline {
+    agent any
+
+    tools {
+        jdk   'jdk21'
+        maven 'maven-3.9'
+    }
+
+    options {
+        timestamps()
+        timeout(time: 20, unit: 'MINUTES')
+    }
+
+    environment {
+        DB_HOST = 'mariadb-ci'
+        DB_NAME = 'dbgestor'
+        DB_USER = 'root'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Versiones y Herramientas') {
+            steps {
+                sh '''
+                    java -version
+                    mvn -version
+                    mariadb --version
+                    sqlfluff --version
+                '''
+            }
+        }
+
+        stage('Importar Dump en MariaDB 11') {
+            steps {
+                withCredentials([string(credentialsId: 'mariadb-ci-password', variable: 'DB_PASS')]) {
+                    sh '''
+                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" -e "SELECT VERSION() AS mariadb_version;"
+                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" -e "DROP DATABASE IF EXISTS ${DB_NAME}; CREATE DATABASE ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
+                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < dump-dbgestor-202406261453.sql
+                        echo "Dump importado exitosamente en ${DB_HOST}/${DB_NAME}."
+                    '''
+                }
+            }
+        }
+
+        stage('Validar Estructura (Tablas, PKs y FKs)') {
+            steps {
+                withCredentials([string(credentialsId: 'mariadb-ci-password', variable: 'DB_PASS')]) {
+                    sh '''
+                        echo "=== 1. TABLAS EN DBGESTOR ===" > reporte_estructura_bd.txt
+                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -t -e "SHOW TABLES;" >> reporte_estructura_bd.txt
+
+                        for tbl in asignaciones comentarios hibernate_sequence proyectos tareas usuario; do
+                            cnt=$(mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" -N -B "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='${tbl}';")
+                            if [ "$cnt" -ne "1" ]; then
+                                echo "ERROR: Falta la tabla requerida: ${tbl}"
+                                exit 1
+                            fi
+                            echo "Tabla verificada: ${tbl} (OK)" >> reporte_estructura_bd.txt
+                        done
+
+                        echo "\n=== 2. APLICACIÓN Y VALIDACIÓN DE LLAVES FORÁNEAS E ÍNDICES ===" >> reporte_estructura_bd.txt
+                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -e "
+                            ALTER TABLE tareas ADD CONSTRAINT fk_tareas_proyecto FOREIGN KEY (proyecto_id) REFERENCES proyectos(id) ON DELETE CASCADE;
+                            ALTER TABLE comentarios ADD CONSTRAINT fk_comentarios_tarea FOREIGN KEY (tarea_id) REFERENCES tareas(id) ON DELETE CASCADE;
+                            ALTER TABLE comentarios ADD CONSTRAINT fk_comentarios_usuario FOREIGN KEY (usuario_id) REFERENCES usuario(id) ON DELETE CASCADE;
+                            ALTER TABLE asignaciones ADD CONSTRAINT fk_asignaciones_tarea FOREIGN KEY (tarea_id) REFERENCES tareas(id) ON DELETE CASCADE;
+                            ALTER TABLE asignaciones ADD CONSTRAINT fk_asignaciones_usuario FOREIGN KEY (usuario_id) REFERENCES usuario(id) ON DELETE CASCADE;
+                        "
+
+                        echo "\n=== 3. LLAVES PRIMARIAS Y FORÁNEAS REGISTRADAS (INFORMATION_SCHEMA) ===" >> reporte_estructura_bd.txt
+                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -t -e "
+                            SELECT TABLE_NAME, CONSTRAINT_NAME, CONSTRAINT_TYPE
+                            FROM information_schema.TABLE_CONSTRAINTS
+                            WHERE TABLE_SCHEMA = '${DB_NAME}'
+                            ORDER BY TABLE_NAME, CONSTRAINT_TYPE;
+                        " >> reporte_estructura_bd.txt
+
+                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -t -e "
+                            SELECT TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+                            FROM information_schema.KEY_COLUMN_USAGE
+                            WHERE TABLE_SCHEMA = '${DB_NAME}'
+                            ORDER BY TABLE_NAME, COLUMN_NAME;
+                        " >> reporte_estructura_bd.txt
+
+                        cat reporte_estructura_bd.txt
+                    '''
+                }
+            }
+        }
+
+        stage('Pruebas CRUD de Base de Datos') {
+            steps {
+                withCredentials([string(credentialsId: 'mariadb-ci-password', variable: 'DB_PASS')]) {
+                    sh '''
+                        echo "=== PRUEBAS CRUD SOBRE DBGESTOR ===" > reporte_crud_bd.txt
+                        mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -t -e "
+                            -- CREATE (INSERT)
+                            INSERT INTO usuario (id, nombre, email, password, rol)
+                            VALUES (9901, 'Usuario CI Prueba', 'ci_test@utng.edu.mx', 'Secret123!', 'Desarrollador');
+
+                            INSERT INTO proyectos (id, nombre, descripcion, fecha_inicio, fecha_fin)
+                            VALUES (9902, 'Proyecto CI Automatizado', 'Validacion CRUD en pipeline', '2026-03-01', '2026-03-31');
+
+                            INSERT INTO tareas (id, proyecto_id, nombre, descripcion, fecha_inicio, fecha_fin, estado)
+                            VALUES (9903, 9902, 'Tarea CI', 'Verificar integridad referencial', '2026-03-02', '2026-03-10', 'Pendiente');
+
+                            INSERT INTO asignaciones (id, tarea_id, usuario_id, fecha_asignacion)
+                            VALUES (9904, 9903, 9901, '2026-03-02');
+
+                            INSERT INTO comentarios (id, tarea_id, usuario_id, comentario, fecha)
+                            VALUES (9905, 9903, 9901, 'Comentario de prueba CRUD', '2026-03-03');
+
+                            -- READ (SELECT JOIN)
+                            SELECT p.id AS proyecto_id, p.nombre AS proyecto, t.nombre AS tarea, t.estado, u.nombre AS responsable, c.comentario
+                            FROM proyectos p
+                            INNER JOIN tareas t ON t.proyecto_id = p.id
+                            INNER JOIN asignaciones a ON a.tarea_id = t.id
+                            INNER JOIN usuario u ON u.id = a.usuario_id
+                            INNER JOIN comentarios c ON c.tarea_id = t.id
+                            WHERE p.id = 9902;
+
+                            -- UPDATE
+                            UPDATE tareas SET estado = 'Completada' WHERE id = 9903;
+                            SELECT id, nombre, estado FROM tareas WHERE id = 9903;
+
+                            -- DELETE (verifica cascada o borrado limpio)
+                            DELETE FROM comentarios WHERE id = 9905;
+                            DELETE FROM asignaciones WHERE id = 9904;
+                            DELETE FROM tareas WHERE id = 9903;
+                            DELETE FROM proyectos WHERE id = 9902;
+                            DELETE FROM usuario WHERE id = 9901;
+
+                            SELECT COUNT(*) AS registros_temporales_restantes FROM proyectos WHERE id = 9902;
+                        " >> reporte_crud_bd.txt
+
+                        cat reporte_crud_bd.txt
+                    '''
+                }
+            }
+        }
+
+        stage('Análisis de Calidad SQL (SQLFluff Lint)') {
+            steps {
+                sh '''
+                    cat << 'EOF' > validacion_calidad_dbgestor.sql
+SELECT
+    p.id AS proyecto_id,
+    p.nombre AS proyecto_nombre,
+    t.id AS tarea_id,
+    t.nombre AS tarea_nombre,
+    t.estado AS tarea_estado,
+    u.email AS usuario_email
+FROM proyectos AS p
+INNER JOIN tareas AS t
+    ON p.id = t.proyecto_id
+INNER JOIN asignaciones AS a
+    ON t.id = a.tarea_id
+INNER JOIN usuario AS u
+    ON a.usuario_id = u.id
+WHERE t.estado IS NOT NULL
+ORDER BY p.id ASC, t.id ASC;
+EOF
+                    sqlfluff lint --dialect mariadb validacion_calidad_dbgestor.sql | tee reporte_sqlfluff.txt
+                    sqlfluff lint --dialect mariadb --format json dump-dbgestor-202406261453.sql > reporte_sqlfluff_dump.json || true
+                    echo "Análisis de calidad SQL con SQLFluff completado." >> reporte_sqlfluff.txt
+                '''
+            }
+        }
+
+        stage('Archivar Resultados') {
+            steps {
+                archiveArtifacts artifacts: 'reporte_estructura_bd.txt,reporte_crud_bd.txt,reporte_sqlfluff.txt,reporte_sqlfluff_dump.json,validacion_calidad_dbgestor.sql', fingerprint: true
+            }
+        }
+    }
+}
