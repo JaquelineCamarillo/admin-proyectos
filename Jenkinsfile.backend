@@ -74,7 +74,9 @@ pipeline {
             steps {
                 dir('Ejercicio5MyAPIGestor') {
                     withSonarQubeEnv('sonarqube') {
-                        sh 'mvn -B sonar:sonar'
+                        withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                            sh 'mvn -B sonar:sonar -Dsonar.login="${SONAR_TOKEN}"'
+                        }
                     }
                 }
             }
