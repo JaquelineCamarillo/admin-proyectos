@@ -20,6 +20,13 @@
 		<sonar.projectKey>Ejercicio5Cliente</sonar.projectKey>
 		<sonar.projectName>Ejercicio5Cliente</sonar.projectName>
 		<sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+		<sonar.exclusions>**/target/**,**/static/Images/**,**/static/css/**,**/static/js/bootstrap*,**/static/js/jquery*,**/static/js/popper*,**/Ejercicio5ClienteApplication.java,**/modelo/**</sonar.exclusions>
+		<!-- Remediación de vulnerabilidades CVE detectadas por Trivy -->
+		<tomcat.version>10.1.61</tomcat.version>
+		<thymeleaf.version>3.1.5.RELEASE</thymeleaf.version>
+		<log4j2.version>2.26.1</log4j2.version>
+		<jackson-bom.version>2.22.4</jackson-bom.version>
+		<spring-framework.version>6.1.21</spring-framework.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -60,11 +67,36 @@
 					<release>${java.version}</release>
 				</configuration>
 			</plugin>
-			<!-- Cobertura de código (Práctica 2): reporte en target/site/jacoco/index.html -->
+			<!-- Cobertura de código (Práctica 2 y 3): reporte en target/site/jacoco/index.html -->
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
 				<version>0.8.12</version>
+				<configuration>
+					<excludes>
+						<!-- Clase de arranque SpringApplication.run: sin lógica de negocio -->
+						<exclude>com/mx/cbtis/Ejercicio5ClienteApplication.class</exclude>
+						<!-- DTOs / POJOs con únicamente constructores, getters y setters -->
+						<exclude>com/mx/cbtis/modelo/**</exclude>
+					</excludes>
+					<rules>
+						<rule>
+							<element>BUNDLE</element>
+							<limits>
+								<limit>
+									<counter>METHOD</counter>
+									<value>COVEREDRATIO</value>
+									<minimum>1.00</minimum>
+								</limit>
+								<limit>
+									<counter>LINE</counter>
+									<value>COVEREDRATIO</value>
+									<minimum>0.95</minimum>
+								</limit>
+							</limits>
+						</rule>
+					</rules>
+				</configuration>
 				<executions>
 					<execution>
 						<goals>
@@ -77,6 +109,32 @@
 						<goals>
 							<goal>report</goal>
 						</goals>
+					</execution>
+					<execution>
+						<id>jacoco-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>METHOD</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>1.00</minimum>
+										</limit>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.95</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>
