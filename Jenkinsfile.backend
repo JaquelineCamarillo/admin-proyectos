@@ -30,7 +30,7 @@ pipeline {
         stage('Compilar') {
             steps {
                 dir('Ejercicio5MyAPIGestor') {
-                    sh 'mvn -B clean test-compile'
+                    sh 'mvn -o -B test-compile'
                 }
             }
         }
@@ -38,7 +38,7 @@ pipeline {
         stage('Pruebas Unitarias (JUnit)') {
             steps {
                 dir('Ejercicio5MyAPIGestor') {
-                    sh 'mvn -B test'
+                    sh 'mvn -o -B test'
                 }
             }
             post {
@@ -51,7 +51,7 @@ pipeline {
         stage('Cobertura JaCoCo') {
             steps {
                 dir('Ejercicio5MyAPIGestor') {
-                    sh 'mvn -B jacoco:report jacoco:check'
+                    sh 'mvn -o -B jacoco:report jacoco:check'
                 }
                 jacoco(
                     execPattern: 'Ejercicio5MyAPIGestor/target/jacoco.exec',
@@ -75,7 +75,7 @@ pipeline {
                 dir('Ejercicio5MyAPIGestor') {
                     withSonarQubeEnv('sonarqube') {
                         withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                            sh 'mvn -B sonar:sonar -Dsonar.login="${SONAR_TOKEN}"'
+                            sh 'mvn -o -B sonar:sonar -Dsonar.login="${SONAR_TOKEN}"'
                         }
                     }
                 }
@@ -94,7 +94,6 @@ pipeline {
             steps {
                 dir('Ejercicio5MyAPIGestor') {
                     sh '''
-                        mvn -B dependency:resolve
                         trivy fs . --skip-db-update --skip-check-update --offline-scan \
                             --scanners vuln,secret,misconfig \
                             --skip-dirs target \
@@ -112,7 +111,7 @@ pipeline {
         stage('Empaquetar y Archivar JAR') {
             steps {
                 dir('Ejercicio5MyAPIGestor') {
-                    sh 'mvn -B package -DskipTests'
+                    sh 'mvn -o -B package -DskipTests'
                 }
                 archiveArtifacts artifacts: 'Ejercicio5MyAPIGestor/target/*.jar,Ejercicio5MyAPIGestor/target/trivy-backend.*,Ejercicio5MyAPIGestor/target/site/jacoco/**', fingerprint: true
             }
