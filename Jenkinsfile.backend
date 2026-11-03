@@ -10,7 +10,7 @@ pipeline {
 
     options {
         timestamps()
-        timeout(time: 20, unit: 'MINUTES')
+        timeout(time: 30, unit: 'MINUTES')
     }
 
     stages {
@@ -98,10 +98,6 @@ pipeline {
                             --scanners vuln,secret,misconfig \
                             --skip-dirs target \
                             --format table -o target/trivy-backend.txt
-                        trivy fs . --skip-db-update --skip-check-update --offline-scan \
-                            --scanners vuln,secret,misconfig \
-                            --skip-dirs target \
-                            --format json -o target/trivy-backend.json
                         cat target/trivy-backend.txt
                     '''
                 }
