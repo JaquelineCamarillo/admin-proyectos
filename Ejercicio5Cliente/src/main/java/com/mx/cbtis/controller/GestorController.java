@@ -98,6 +98,7 @@ public class GestorController {
 
 	@GetMapping("/tarea")
 	public String getTarea(Model modelo) {
+		modelo.addAttribute("tarea", new Tareas());
 		modelo.addAttribute("tareas", new Tareas());
 		return "proyecto";
 	}
@@ -219,8 +220,9 @@ public class GestorController {
 	}
 
 	@PostMapping("/saveComentario")
-	public String setSaveComentario(@RequestBody Comentarios comentarios) {
+	public String setSaveComentario(@RequestBody Comentarios comentarios, Model modelo) {
 		template.postForEntity(api + "/addComentario", comentarios, Integer.class);
+		modelo.addAttribute("tarea", new Tareas());
 		return "proyecto";
 	}
 
@@ -248,7 +250,7 @@ public class GestorController {
 	@ExceptionHandler(HttpClientErrorException.class)
 	public ResponseEntity<?> errorDeCliente(HttpClientErrorException ex) {
 		String cuerpo = ex.getResponseBodyAsString();
-		if (cuerpo != null && !cuerpo.isBlank()) {
+		if (!vacio(cuerpo)) {
 			return ResponseEntity.status(ex.getStatusCode()).contentType(MediaType.APPLICATION_JSON).body(cuerpo);
 		}
 		String mensaje = ex.getStatusCode().value() == 404

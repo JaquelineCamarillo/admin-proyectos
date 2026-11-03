@@ -1,6 +1,7 @@
 package com.mx.cbtis.controller;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withBadRequest;
@@ -33,7 +34,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.client.RestTemplate;
 
 /**
- * Práctica 2 – Pruebas automáticas del frontend (GestorController).
+ * Práctica 2 y 3 – Pruebas automáticas completas del frontend (GestorController y RestTemplateConfig).
  * MockMvc simula las peticiones del navegador y MockRestServiceServer simula la API (puerto 8081),
  * por lo que las pruebas no dependen de que el backend esté encendido.
  */
@@ -55,6 +56,12 @@ class GestorControllerTest {
 			+ "{\"id_usuario\":172,\"nombre\":\"Liliana Gómez Martínez\",\"correo_electronico\":\"liliana22512@cbtis75.edu.mx\",\"contrasena\":\"ada\",\"rol\":\"Estudiante\",\"imagen_usuario\":\"#54EA01\"},"
 			+ "{\"id_usuario\":196,\"nombre\":\"Perla Joceline Martínez Meza\",\"correo_electronico\":\"perla22522@cbtis75.edu.mx\",\"contrasena\":\"12345\",\"rol\":\"Estudiante\",\"imagen_usuario\":\"#805611\"}]";
 
+	private static final String TAREAS_JSON = "[{\"id_tarea\":199,\"nombre\":\"Base de datos\",\"descripcion\":\"Tablas\","
+			+ "\"fecha_vencimiento\":\"2024-06-13\",\"estado\":\"danger\",\"lista\":\"terminado\",\"id_proyecto\":197}]";
+
+	private static final String COMENTARIOS_JSON = "[{\"id_comentario\":201,\"texto_comentario\":\"Subirlo YA!!!\","
+			+ "\"fecha_hora\":\"2024-06-26 13:48:00\",\"id_usuario\":\"Perla Joceline Martínez Meza\",\"id_tarea\":199}]";
+
 	@Autowired
 	private MockMvc mvc;
 
@@ -66,6 +73,36 @@ class GestorControllerTest {
 	@BeforeEach
 	void prepararApiSimulada() {
 		api = MockRestServiceServer.bindTo(restTemplate).build();
+	}
+
+	// ======================= VISTAS =======================
+
+	@Test
+	@DisplayName("FRONT-V01 Vistas estáticas: /, /tutorial, /manual, /login")
+	void vistasEstaticas_devuelvenPlantillas() throws Exception {
+		mvc.perform(get("/")).andExpect(status().isOk()).andExpect(view().name("home"));
+		mvc.perform(get("/tutorial")).andExpect(status().isOk()).andExpect(view().name("tutorial"));
+		mvc.perform(get("/manual")).andExpect(status().isOk()).andExpect(view().name("manual"));
+		mvc.perform(get("/login")).andExpect(status().isOk()).andExpect(view().name("login"));
+	}
+
+	@Test
+	@DisplayName("FRONT-V02 Vistas con modelo: /register, /inicio, /tarea")
+	void vistasConModelo_agreganAtributos() throws Exception {
+		mvc.perform(get("/register"))
+				.andExpect(status().isOk())
+				.andExpect(view().name("register"))
+				.andExpect(model().attributeExists("usuario"));
+
+		mvc.perform(get("/inicio"))
+				.andExpect(status().isOk())
+				.andExpect(view().name("inicio"))
+				.andExpect(model().attributeExists("proyectos"));
+
+		mvc.perform(get("/tarea"))
+				.andExpect(status().isOk())
+				.andExpect(view().name("proyecto"))
+				.andExpect(model().attributeExists("tareas"));
 	}
 
 	// ======================= CASOS DE ÉXITO =======================
@@ -138,7 +175,117 @@ class GestorControllerTest {
 		api.verify();
 	}
 
-	// ======================= CASOS DE FRACASO =======================
+	@Test
+	@DisplayName("FRONT-U01 consultarUsuarios: devuelve lista JSON de usuarios")
+	void consultarUsuarios_devuelveLista() throws Exception {
+		api.expect(requestTo(API + "/buscarUsuarios")).andExpect(method(HttpMethod.POST))
+				.andRespond(withSuccess(USUARIOS_JSON, MediaType.APPLICATION_JSON));
+
+		mvc.perform(post("/consultarUsuarios"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(3)))
+				.andExpect(jsonPath("$[0].id_usuario", is(131)));
+		api.verify();
+	}
+
+	@Test
+	@DisplayName("FRONT-P01 Operaciones de proyectos: saveProyecto, eliminarProyecto y actualizarProyecto")
+	void operacionesProyectos_exito() throws Exception {
+		api.expect(requestTo(API + "/addProyecto")).andExpect(method(HttpMethod.POST))
+				.andRespond(withSuccess("1", MediaType.APPLICATION_JSON));
+		api.expect(requestTo(API + "/deleteProyecto")).andExpect(method(HttpMethod.DELETE))
+				.andRespond(withSuccess("1", MediaType.APPLICATION_JSON));
+		api.expect(requestTo(API + "/buscarProyecto?id_proyecto=197")).andExpect(method(HttpMethod.GET))
+				.andRespond(withSuccess("{\"id_proyecto\":197,\"nombre\":\"My API Rest\"}", MediaType.APPLICATION_JSON));
+
+		mvc.perform(post("/saveProyecto").param("nombre", "Nuevo"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/inicio"));
+
+		mvc.perform(post("/eliminarProyecto").contentType(MediaType.APPLICATION_JSON)
+				.content("{\"id_proyecto\":197}"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/inicio"));
+
+		mvc.perform(post("/actualizarProyecto").contentType(MediaType.APPLICATION_JSON)
+				.content("{\"id_proyecto\":197}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.nombre", is("My API Rest")));
+
+		api.verify();
+	}
+
+	@Test
+	@DisplayName("FRONT-T01 Operaciones de tareas: obtenerTareas, saveTarea, actualizarTarea, eliminarTarea, cambiosTareas, consultarTareas")
+	void operacionesTareas_exito() throws Exception {
+		api.expect(requestTo(API + "/getTarea")).andExpect(method(HttpMethod.POST))
+				.andRespond(withSuccess(TAREAS_JSON, MediaType.APPLICATION_JSON));
+		api.expect(requestTo(API + "/addTareas")).andExpect(method(HttpMethod.POST))
+				.andRespond(withSuccess("1", MediaType.APPLICATION_JSON));
+		api.expect(requestTo(API + "/buscarTarea?id_tarea=199")).andExpect(method(HttpMethod.GET))
+				.andRespond(withSuccess("{\"id_tarea\":199,\"nombre\":\"Base de datos\"}", MediaType.APPLICATION_JSON));
+		api.expect(requestTo(API + "/deleteTareas")).andExpect(method(HttpMethod.DELETE))
+				.andRespond(withSuccess("1", MediaType.APPLICATION_JSON));
+		api.expect(requestTo(API + "/addTareas")).andExpect(method(HttpMethod.POST))
+				.andRespond(withSuccess("1", MediaType.APPLICATION_JSON));
+		api.expect(requestTo(API + "/buscarTareas")).andExpect(method(HttpMethod.POST))
+				.andRespond(withSuccess(TAREAS_JSON, MediaType.APPLICATION_JSON));
+
+		mvc.perform(post("/obtenerTareas").contentType(MediaType.APPLICATION_JSON).content("{\"id_proyecto\":197}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(1)));
+
+		mvc.perform(post("/saveTarea").param("nombre", "T1").param("id_proyecto", "197"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/proyecto?id_proyecto=197"));
+
+		mvc.perform(post("/actualizarTarea").contentType(MediaType.APPLICATION_JSON).content("{\"id_tarea\":199}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id_tarea", is(199)));
+
+		mvc.perform(post("/eliminarTarea").contentType(MediaType.APPLICATION_JSON).content("{\"id_tarea\":199}"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/proyecto"));
+
+		mvc.perform(post("/cambiosTareas").contentType(MediaType.APPLICATION_JSON).content("{\"id_tarea\":199,\"lista\":\"terminado\"}"))
+				.andExpect(status().isOk())
+				.andExpect(content().string("1"));
+
+		mvc.perform(post("/consultarTareas"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(1)));
+
+		api.verify();
+	}
+
+	@Test
+	@DisplayName("FRONT-C01 Operaciones de comentarios: obtenerComentarios, saveComentario y consultarComentarios")
+	void operacionesComentarios_exito() throws Exception {
+		api.expect(requestTo(API + "/getComentario")).andExpect(method(HttpMethod.POST))
+				.andRespond(withSuccess(COMENTARIOS_JSON, MediaType.APPLICATION_JSON));
+		api.expect(requestTo(API + "/addComentario")).andExpect(method(HttpMethod.POST))
+				.andRespond(withSuccess("1", MediaType.APPLICATION_JSON));
+		api.expect(requestTo(API + "/buscarComentarios")).andExpect(method(HttpMethod.POST))
+				.andRespond(withSuccess(COMENTARIOS_JSON, MediaType.APPLICATION_JSON));
+
+		mvc.perform(post("/obtenerComentarios").contentType(MediaType.APPLICATION_JSON).content("{\"id_tarea\":199}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(1)))
+				.andExpect(jsonPath("$[0].id_comentario", is(201)));
+
+		mvc.perform(post("/saveComentario").contentType(MediaType.APPLICATION_JSON)
+				.content("{\"id_tarea\":199,\"texto_comentario\":\"Listo\"}"))
+				.andExpect(status().isOk())
+				.andExpect(view().name("proyecto"));
+
+		mvc.perform(post("/consultarComentarios"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(1)));
+
+		api.verify();
+	}
+
+	// ======================= CASOS DE FRACASO Y VALIDACIONES =======================
 
 	@Test
 	@DisplayName("AUT-F01 Servicio de consulta: el backend responde 500")
@@ -153,25 +300,49 @@ class GestorControllerTest {
 	}
 
 	@Test
-	@DisplayName("AUT-F02 Formulario de registro: datos incompletos no llegan al backend")
+	@DisplayName("AUT-F02 Formulario de registro: datos incompletos no llegan al backend (todas las ramas)")
 	void saveUsuario_datosIncompletos() throws Exception {
-		// No se declara ninguna petición esperada: si el front llama a la API, la prueba falla.
+		// Sin nombre (null)
+		mvc.perform(post("/saveUsuario").param("correo_electronico", "a@b.c").param("contrasena", "123"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/register?error"));
+
+		// Nombre en blanco
+		mvc.perform(post("/saveUsuario").param("nombre", "   ").param("correo_electronico", "a@b.c").param("contrasena", "123"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/register?error"));
+
+		// Sin correo
 		mvc.perform(post("/saveUsuario").param("nombre", "Sin correo"))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/register?error"));
+
+		// Sin contraseña
+		mvc.perform(post("/saveUsuario").param("nombre", "Juana").param("correo_electronico", "a@b.c").param("contrasena", ""))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/register?error"));
+
 		api.verify();
 	}
 
 	@Test
-	@DisplayName("AUT-F03 Recurso inexistente: proyecto 99999")
-	void actualizarProyecto_noExiste() throws Exception {
+	@DisplayName("AUT-F03 Recurso inexistente: proyecto 99999 (404 sin cuerpo) y error 400 sin cuerpo")
+	void actualizarProyecto_noExisteYBadRequestSinCuerpo() throws Exception {
 		api.expect(requestTo(API + "/buscarProyecto?id_proyecto=99999")).andExpect(method(HttpMethod.GET))
 				.andRespond(withStatus(HttpStatus.NOT_FOUND));
+		api.expect(requestTo(API + "/buscarProyecto?id_proyecto=-1")).andExpect(method(HttpMethod.GET))
+				.andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
 		mvc.perform(post("/actualizarProyecto").contentType(MediaType.APPLICATION_JSON)
 				.content("{\"id_proyecto\":99999}"))
 				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.mensaje").exists());
+				.andExpect(jsonPath("$.mensaje").value("El recurso solicitado no existe."));
+
+		mvc.perform(post("/actualizarProyecto").contentType(MediaType.APPLICATION_JSON)
+				.content("{\"id_proyecto\":-1}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.mensaje").value("La solicitud no es válida."));
+
 		api.verify();
 	}
 
@@ -189,7 +360,7 @@ class GestorControllerTest {
 	}
 
 	@Test
-	@DisplayName("AUT-F05 Formulario de tarea: la API rechaza la fecha (400)")
+	@DisplayName("AUT-F05 Formulario de tarea: la API rechaza la fecha (400 con cuerpo)")
 	void verificarTarea_fechaInvalida() throws Exception {
 		api.expect(requestTo(API + "/addTareas"))
 				.andRespond(withBadRequest().body("0").contentType(MediaType.APPLICATION_JSON));
