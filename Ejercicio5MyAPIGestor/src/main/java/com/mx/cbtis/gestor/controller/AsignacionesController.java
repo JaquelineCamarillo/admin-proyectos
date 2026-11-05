@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.mx.cbtis.gestor.dto.AsignacionesDTO;
 import com.mx.cbtis.gestor.modelo.Asignaciones;
 import com.mx.cbtis.gestor.repository.AsignacionesRepository;
 
@@ -36,24 +37,24 @@ public class AsignacionesController {
 	// F-01: si id_usuario o id_tarea no existen, la llave foránea lo rechaza
 	// y GlobalExceptionHandler responde 409 Conflict
 	@PostMapping("/addAsignacion")
-	public ResponseEntity<Integer> addAsignacion(@RequestBody Asignaciones asignacion) {
-		asignacionestable.save(asignacion);
+	public ResponseEntity<Integer> addAsignacion(@RequestBody AsignacionesDTO asignacionDTO) {
+		asignacionestable.save(asignacionDTO.toEntity());
 		return ResponseEntity.ok(1);
 	}
 
 	@PostMapping("/updateAsignacion")
-	public ResponseEntity<Integer> updateAsignacion(@RequestBody Asignaciones asignacion) {
-		asignacionestable.save(asignacion);
+	public ResponseEntity<Integer> updateAsignacion(@RequestBody AsignacionesDTO asignacionDTO) {
+		asignacionestable.save(asignacionDTO.toEntity());
 		return ResponseEntity.ok(1);
 	}
 
 	// F-04: solo se elimina si el registro existe
 	@DeleteMapping("/deleteAsignacion")
-	public ResponseEntity<Integer> deleteAsignacion(@RequestBody Asignaciones asignacion) {
-		if (asignacion.getId_asignacion() == null || !asignacionestable.existsById(asignacion.getId_asignacion())) {
+	public ResponseEntity<Integer> deleteAsignacion(@RequestBody AsignacionesDTO asignacionDTO) {
+		if (asignacionDTO.getId_asignacion() == null || !asignacionestable.existsById(asignacionDTO.getId_asignacion())) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(0);
 		}
-		asignacionestable.deleteById(asignacion.getId_asignacion());
+		asignacionestable.deleteById(asignacionDTO.getId_asignacion());
 		return ResponseEntity.ok(1);
 	}
 

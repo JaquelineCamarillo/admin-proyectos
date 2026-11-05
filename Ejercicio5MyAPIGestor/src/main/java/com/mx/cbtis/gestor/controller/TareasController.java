@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.mx.cbtis.gestor.dto.TareasDTO;
 import com.mx.cbtis.gestor.modelo.Tareas;
 import com.mx.cbtis.gestor.repository.TareasRepository;
 
@@ -31,7 +32,7 @@ public class TareasController {
 	TareasRepository tareastable;
 
 	@PostMapping("/getTarea")
-	public List<Tareas> getTarea(@RequestBody Tareas id_proyecto) {
+	public List<Tareas> getTarea(@RequestBody TareasDTO id_proyecto) {
 		return tareastable.findByIdProyecto(id_proyecto.getId_proyecto());
 	}
 
@@ -47,7 +48,8 @@ public class TareasController {
 
 	// F-05: se valida el formato de la fecha antes de guardar
 	@PostMapping("/addTareas")
-	public ResponseEntity<Integer> addTareas(@RequestBody Tareas tareas) {
+	public ResponseEntity<Integer> addTareas(@RequestBody TareasDTO tareasDTO) {
+		Tareas tareas = tareasDTO.toEntity();
 		normalizarFecha(tareas);
 		if (!fechaValida(tareas.getFecha_vencimiento())) {
 			return ResponseEntity.badRequest().body(0);
@@ -57,7 +59,8 @@ public class TareasController {
 	}
 
 	@PostMapping("/updateTareas")
-	public ResponseEntity<Integer> updateTareas(@RequestBody Tareas tareas) {
+	public ResponseEntity<Integer> updateTareas(@RequestBody TareasDTO tareasDTO) {
+		Tareas tareas = tareasDTO.toEntity();
 		normalizarFecha(tareas);
 		if (!fechaValida(tareas.getFecha_vencimiento())) {
 			return ResponseEntity.badRequest().body(0);
@@ -68,11 +71,11 @@ public class TareasController {
 
 	// F-04: solo se elimina si el registro existe
 	@DeleteMapping("/deleteTareas")
-	public ResponseEntity<Integer> deleteTareas(@RequestBody Tareas tareas) {
-		if (tareas.getId_tarea() == null || !tareastable.existsById(tareas.getId_tarea())) {
+	public ResponseEntity<Integer> deleteTareas(@RequestBody TareasDTO tareasDTO) {
+		if (tareasDTO.getId_tarea() == null || !tareastable.existsById(tareasDTO.getId_tarea())) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(0);
 		}
-		tareastable.deleteById(tareas.getId_tarea());
+		tareastable.deleteById(tareasDTO.getId_tarea());
 		return ResponseEntity.ok(1);
 	}
 

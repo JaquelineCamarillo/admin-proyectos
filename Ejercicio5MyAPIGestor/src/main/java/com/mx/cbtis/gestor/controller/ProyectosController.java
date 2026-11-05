@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.mx.cbtis.gestor.dto.ProyectosDTO;
 import com.mx.cbtis.gestor.modelo.Proyectos;
 import com.mx.cbtis.gestor.repository.ProtectosRepository;
 
@@ -34,24 +35,24 @@ public class ProyectosController {
 	}
 
 	@PostMapping("/addProyecto")
-	public ResponseEntity<Integer> addProyecto(@RequestBody Proyectos proyecto) {
-		proyectostable.save(proyecto);
+	public ResponseEntity<Integer> addProyecto(@RequestBody ProyectosDTO proyectoDTO) {
+		proyectostable.save(proyectoDTO.toEntity());
 		return ResponseEntity.ok(1);
 	}
 
 	@PostMapping("/updateProyecto")
-	public ResponseEntity<Integer> updateProyecto(@RequestBody Proyectos proyecto) {
-		proyectostable.save(proyecto);
+	public ResponseEntity<Integer> updateProyecto(@RequestBody ProyectosDTO proyectoDTO) {
+		proyectostable.save(proyectoDTO.toEntity());
 		return ResponseEntity.ok(1);
 	}
 
 	// F-04: solo se elimina si el registro existe
 	@DeleteMapping("/deleteProyecto")
-	public ResponseEntity<Integer> deleteProyecto(@RequestBody Proyectos proyecto) {
-		if (proyecto.getId_proyecto() == null || !proyectostable.existsById(proyecto.getId_proyecto())) {
+	public ResponseEntity<Integer> deleteProyecto(@RequestBody ProyectosDTO proyectoDTO) {
+		if (proyectoDTO.getId_proyecto() == null || !proyectostable.existsById(proyectoDTO.getId_proyecto())) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(0);
 		}
-		proyectostable.deleteById(proyecto.getId_proyecto());
+		proyectostable.deleteById(proyectoDTO.getId_proyecto());
 		return ResponseEntity.ok(1);
 	}
 

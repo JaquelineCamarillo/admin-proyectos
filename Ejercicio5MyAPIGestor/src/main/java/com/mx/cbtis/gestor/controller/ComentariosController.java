@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.mx.cbtis.gestor.dto.ComentariosDTO;
 import com.mx.cbtis.gestor.modelo.Comentarios;
 import com.mx.cbtis.gestor.repository.ComentariosRepository;
 
@@ -24,7 +25,7 @@ public class ComentariosController {
 	ComentariosRepository comentariostable;
 
 	@PostMapping("/getComentario")
-	public List<Comentarios> getComentario(@RequestBody Comentarios idComentario) {
+	public List<Comentarios> getComentario(@RequestBody ComentariosDTO idComentario) {
 		return comentariostable.findByTarea(idComentario.getId_tarea());
 	}
 
@@ -39,24 +40,24 @@ public class ComentariosController {
 	}
 
 	@PostMapping("/addComentario")
-	public ResponseEntity<Integer> addComentario(@RequestBody Comentarios comentario) {
-		comentariostable.save(comentario);
+	public ResponseEntity<Integer> addComentario(@RequestBody ComentariosDTO comentarioDTO) {
+		comentariostable.save(comentarioDTO.toEntity());
 		return ResponseEntity.ok(1);
 	}
 
 	@PostMapping("/updateComentario")
-	public ResponseEntity<Integer> updateComentario(@RequestBody Comentarios comentario) {
-		comentariostable.save(comentario);
+	public ResponseEntity<Integer> updateComentario(@RequestBody ComentariosDTO comentarioDTO) {
+		comentariostable.save(comentarioDTO.toEntity());
 		return ResponseEntity.ok(1);
 	}
 
 	// F-04: solo se elimina si el registro existe
 	@DeleteMapping("/deleteComentario")
-	public ResponseEntity<Integer> deleteComentario(@RequestBody Comentarios comentario) {
-		if (comentario.getId_comentario() == null || !comentariostable.existsById(comentario.getId_comentario())) {
+	public ResponseEntity<Integer> deleteComentario(@RequestBody ComentariosDTO comentarioDTO) {
+		if (comentarioDTO.getId_comentario() == null || !comentariostable.existsById(comentarioDTO.getId_comentario())) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(0);
 		}
-		comentariostable.deleteById(comentario.getId_comentario());
+		comentariostable.deleteById(comentarioDTO.getId_comentario());
 		return ResponseEntity.ok(1);
 	}
 

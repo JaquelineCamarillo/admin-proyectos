@@ -20,7 +20,7 @@
 		<sonar.projectKey>Ejercicio5MyAPIGestor</sonar.projectKey>
 		<sonar.projectName>Ejercicio5MyAPIGestor</sonar.projectName>
 		<sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
-		<sonar.exclusions>**/target/**,**/static/Images/**,**/Ejercicio5MyApiGestorApplication.java,**/modelo/**</sonar.exclusions>
+		<sonar.exclusions>**/target/**,**/static/Images/**,**/Ejercicio5MyApiGestorApplication.java,**/modelo/**,**/dto/**</sonar.exclusions>
 		<!-- Remediación de vulnerabilidades CVE detectadas por Trivy -->
 		<tomcat.version>9.0.123</tomcat.version>
 		<snakeyaml.version>2.2</snakeyaml.version>
@@ -96,6 +96,8 @@
 						<exclude>com/mx/cbtis/gestor/Ejercicio5MyApiGestorApplication.class</exclude>
 						<!-- Entidades JPA / POJOs con únicamente constructores, getters y setters -->
 						<exclude>com/mx/cbtis/gestor/modelo/**</exclude>
+						<!-- DTOs de transferencia REST sin lógica de negocio -->
+						<exclude>com/mx/cbtis/gestor/dto/**</exclude>
 					</excludes>
 					<rules>
 						<rule>
