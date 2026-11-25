@@ -22,7 +22,9 @@ Write-Host "`n=== 1. Docker Desktop ===" -ForegroundColor Cyan
 docker info *> $null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "   Abriendo Docker Desktop..."
-    Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+    $dockerDesktopPath = "$env:LOCALAPPDATA\Programs\DockerDesktop\Docker Desktop.exe"
+    if (-not (Test-Path $dockerDesktopPath)) { $dockerDesktopPath = "C:\Program Files\Docker\Docker\Docker Desktop.exe" }
+    Start-Process $dockerDesktopPath
     do { Start-Sleep -Seconds 5; docker info *> $null; Write-Host "." -NoNewline } while ($LASTEXITCODE -ne 0)
     Write-Host " LISTO" -ForegroundColor Green
 } else { Write-Host "   Docker ya esta corriendo" -ForegroundColor Green }
