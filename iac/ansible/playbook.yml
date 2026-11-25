@@ -1,0 +1,63 @@
+---
+# =====================================================================
+# playbook.yml - Automatización de despliegue y configuración con Ansible
+# Proyecto Integrador DevOps + IaC · UTNG
+# =====================================================================
+- name: Aprovisionamiento y Despliegue del Sistema Admin Proyectos
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    project_root: "C:/admin-proyectos"
+    db_password: "{{ lookup('env', 'DB_PASSWORD') | default('root', true) }}"
+    backend_url: "http://localhost:8081/actuator/health"
+    frontend_url: "http://localhost:8080/actuator/health"
+
+  tasks:
+    - name: 1. Validar que Docker este instalado y operativo
+      command: docker info
+      register: docker_check
+      changed_when: false
+      failed_when: docker_check.rc != 0
+
+    - name: 2. Construir imagenes de contenedores de microservicios
+      command: docker compose build
+      args:
+        chdir: "{{ project_root }}"
+
+    - name: 3. Levantar servicios del circuito DevOps (BD, Backend, Frontend, Prometheus, Grafana)
+      command: docker compose up -d
+      args:
+        chdir: "{{ project_root }}"
+
+    - name: 4. Esperar a que el Backend este saludable (/actuator/health)
+      uri:
+        url: "{{ backend_url }}"
+        status_code: 200
+      register: backend_result
+      until: backend_result.status == 200
+      retries: 15
+      delay: 5
+
+    - name: 5. Esperar a que el Frontend este saludable (/actuator/health)
+      uri:
+        url: "{{ frontend_url }}"
+        status_code: 200
+      register: frontend_result
+      until: frontend_result.status == 200
+      retries: 15
+      delay: 5
+
+    - name: 6. Resumen de despliegue e infraestructura operativa
+      debug:
+        msg:
+          - "=========================================================="
+          - " DESPLIEGUE CON ANSIBLE EXITOSO - CIRCUITO DEVOPS ACTIVO"
+          - "=========================================================="
+          - " Frontend Web: http://localhost:8080"
+          - " Backend API REST: http://localhost:8081"
+          - " Swagger UI: http://localhost:8081/swagger-ui.html"
+          - " Prometheus Metrics: http://localhost:9095"
+          - " Grafana Dashboard: http://localhost:3000 (admin/admin)"
+          - "=========================================================="

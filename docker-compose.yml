@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # ===================================================================
+  # 1. Base de datos MariaDB 11 con inicialización automática de tablas
+  # ===================================================================
+  mariadb:
+    image: mariadb:11.4
+    container_name: admin-proyectos-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_DATABASE: dbgestor
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./dump-dbgestor-202406261453.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - devops-network
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===================================================================
+  # 2. Microservicio Backend REST (Spring Boot 2.7 + Java 21)
+  # ===================================================================
+  backend:
+    build:
+      context: ./Ejercicio5MyAPIGestor
+      dockerfile: Dockerfile
+    container_name: admin-proyectos-backend
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/dbgestor
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+    ports:
+      - "8081:8081"
+    networks:
+      - devops-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ===================================================================
+  # 3. Microservicio Frontend Web (Spring Boot 3.2 + Java 21)
+  # ===================================================================
+  frontend:
+    build:
+      context: ./Ejercicio5Cliente
+      dockerfile: Dockerfile
+    container_name: admin-proyectos-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      PORT: 8080
+      API_URL: http://backend:8081
+    ports:
+      - "8080:8080"
+    networks:
+      - devops-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ===================================================================
+  # 4. Monitoreo: Prometheus (Scraping de métricas de microservicios)
+  # ===================================================================
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: admin-proyectos-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9095:9090"
+    networks:
+      - devops-network
+
+  # ===================================================================
+  # 5. Visualización: Grafana (Tablero DevOps, CPU, JVM, Peticiones)
+  # ===================================================================
+  grafana:
+    image: grafana/grafana:10.4.1
+    container_name: admin-proyectos-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - devops-network
+
+volumes:
+  mariadb_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  devops-network:
+    driver: bridge

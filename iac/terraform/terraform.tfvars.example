@@ -1,0 +1,8 @@
+# Ejemplo de variables para aprovisionamiento Terraform
+environment     = "prod"
+db_password     = "root_seguro_123"
+db_name         = "dbgestor"
+backend_port    = 8081
+frontend_port   = 8080
+grafana_port    = 3000
+prometheus_port = 9095

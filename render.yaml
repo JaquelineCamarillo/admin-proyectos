@@ -1,0 +1,54 @@
+# =====================================================================
+# render.yaml - Especificación de Infraestructura como Código (IaC)
+# Blueprints nativos de Render para aprovisionamiento automatizado
+# =====================================================================
+services:
+  # Microservicio 1: Backend REST (Spring Boot 2.7 + Java 21)
+  - type: web
+    name: admin-proyectos-backend
+    env: docker
+    dockerfilePath: Ejercicio5MyAPIGestor/Dockerfile
+    dockerContext: Ejercicio5MyAPIGestor
+    plan: free
+    region: oregon
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: PORT
+        value: 8081
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: admin-proyectos-db
+          property: connectionString
+      - key: DB_USER
+        fromDatabase:
+          name: admin-proyectos-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: admin-proyectos-db
+          property: password
+
+  # Microservicio 2: Frontend Web (Spring Boot 3.2 + Java 21)
+  - type: web
+    name: admin-proyectos-frontend
+    env: docker
+    dockerfilePath: Ejercicio5Cliente/Dockerfile
+    dockerContext: Ejercicio5Cliente
+    plan: free
+    region: oregon
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: API_URL
+        fromService:
+          type: web
+          name: admin-proyectos-backend
+          property: host
+
+databases:
+  - name: admin-proyectos-db
+    databaseName: dbgestor
+    user: dbgestor_user
+    plan: free
+    region: oregon

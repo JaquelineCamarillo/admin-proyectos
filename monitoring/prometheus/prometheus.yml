@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: 'admin-proyectos-backend'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['backend:8081', 'host.docker.internal:8081', 'localhost:8081']
+        labels:
+          application: 'Ejercicio5MyAPIGestor'
+          tier: 'backend'
+
+  - job_name: 'admin-proyectos-frontend'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['frontend:8080', 'host.docker.internal:8080', 'localhost:8080']
+        labels:
+          application: 'Ejercicio5Cliente'
+          tier: 'frontend'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

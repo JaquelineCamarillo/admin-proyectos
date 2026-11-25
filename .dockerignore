@@ -1,0 +1,10 @@
+**/.git
+**/.idea
+**/.vscode
+**/target/generated-sources
+**/target/generated-test-sources
+**/target/surefire-reports
+**/target/maven-archiver
+**/target/maven-status
+*.log
+docs/
